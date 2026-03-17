@@ -1,18 +1,15 @@
-# 🚀 VNET Management Infrastructure
-
-Dokumentasi resmi infrastruktur **VNET MEDIA**.
-Sistem ini mengotomatisasi deployment tenant aplikasi (Mikhmon/PHP) menggunakan Docker, Traefik, dan Cloudflare Tunnel.
+🚀 VNET-Management Infrastructure Documentation (ARM64/Armbian)
+Dokumentasi resmi infrastruktur VNET MEDIA. Sistem ini mengotomatisasi deployment tenant aplikasi (Mikhmon/PHP) menggunakan Docker, Traefik, dan Cloudflare Tunnel.
 
 ---
 
-## 🏗️ Arsitektur Sistem (3-Layer)
+## 
+🏗️ Arsitektur Sistem (3-Layer)
+Cloudflare Tunnel: Menghubungkan VPS ke internet tanpa IP Publik/Buka Port.
 
-1. **Cloudflare Tunnel**
-   Menghubungkan VPS ke internet tanpa IP publik atau membuka port.
+Traefik Proxy: Mengatur perutean otomatis subdomain ke masing-masing kontainer tenant.
 
-2. **Traefik Proxy**
-   Mengatur routing otomatis subdomain ke masing-masing container tenant.
-
+Manager App: Dashboard PHP Native untuk kontrol deploy, monitor CPU/RAM, dan manajemen user.
 3. **Manager App**
    Dashboard PHP Native untuk:
 
@@ -44,7 +41,7 @@ Pastikan lokasi file di VPS sesuai dengan jalur berikut agar skrip tidak error:
 ```plaintext
 /home/ubuntu/app-manager/manager/
 ├── docker-compose.yml       # Konfigurasi orkestrasi kontainer
-├── Dockerfile-manager       # Docker Image untuk Dashboard
+├── Dockerfile-manager       # Docker Image khusus Dashboard (ARM64)
 ├── kontrol/                 # Source code Dashboard VNET
 ├── user-app/                # Tempat penyimpanan data tiap Tenant
 ├── mikhmon-pppoe/           # Template Master 1 (PPPOE)
@@ -52,8 +49,8 @@ Pastikan lokasi file di VPS sesuai dengan jalur berikut agar skrip tidak error:
 ```
 
 
-## 🛠️ Instalasi VPS Baru
-### 1. Install Docker
+## 🛠️ Instalasi VPS Baru (Armbian)
+### 1. Update & Install Docker
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -176,16 +173,14 @@ masukan compose di bawah ini ganti dengan domain sesuiakan
 version: '3.8'
 
 services:
-  # --- CLOUDFLARE TUNNEL (Konektor ke internet) ---
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: vnet-tunnel
     restart: always
-    command: tunnel --no-autoupdate run --protocol http2 --token GANTI TOKEN KAMU
+    command: tunnel --no-autoupdate run --token GANTI_TOKEN_DISINI
     networks:
       - vnet-network
 
-  # --- TRAEFIK (Reverse Proxy / Auto-subdomain) ---
   traefik:
     image: traefik:v2.10
     container_name: vnet-proxy
@@ -194,20 +189,18 @@ services:
       - "--api.insecure=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=vnet-network" # <--- Beri tahu Traefik network defaultnya
+      - "--providers.docker.network=vnet-network"
       - "--entrypoints.web.address=:80"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - vnet-network
 
-  # --- MANAGER APP (Dashboard Utama) ---
   manager-app:
     build:
       context: .
       dockerfile: Dockerfile-manager
     container_name: vnet-manager
-    user: root
     restart: always
     volumes:
       - ./kontrol:/var/www/html
@@ -217,14 +210,12 @@ services:
       - vnet-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.vnet-manager.rule=Host(`manager.vnetonline.my.id`)"
-      - "traefik.http.routers.vnet-manager.entrypoints=web"
+      - "traefik.http.routers.vnet-manager.rule=Host(`manager.domain.id`)"
       - "traefik.http.services.vnet-manager.loadbalancer.server.port=80"
 
 networks:
   vnet-network:
-    name: vnet-network
-    driver: bridge
+    external: true # Menggunakan network yang dibuat manual (rekomendasi)
 ```
 
 janagn lupa masukan token di atas tadi
@@ -237,42 +228,28 @@ tunnel run --token eyJhIjoiYTY2NmM2MmExMTk4OWZmYTU5M2E1MTU4MDljM2YxNzAiLCJ0IjoiN
 ```
 > kalau sudah ketik CTRL + O , ENTER, CTRL + X
 ---
+## 2. Cek Angka Sakti (GID Docker)
+###  PENTING: Di Armbian, ID grup Docker seringkali berbeda. Jalankan ini dan catat angkanya:
+> getent group docker | cut -d: -f3
+> # Contoh hasil: 998
+
 ## 🐳  Tambah Dockerfile-manager ubuntu/debian
 ### sudo nano  /home/ubuntu/app-manager/manager/Dockerfile-manager
 masukan di bawah ini
 kalau sudah ketik CTRL + O , ENTER, CTRL + X
+
+
 ```dockerfile
-FROM php:8.1-apache
-
-# Install Docker CLI agar PHP bisa akses perintah docker
-RUN apt-get update && apt-get install -y docker.io
-
-# Izin akses docker socket untuk user apache
-RUN usermod -aG docker www-data
-
-# Extension PHP dasar
-RUN docker-php-ext-install mysqli pdo pdo_mysql && a2enmod rewrite
-
-WORKDIR /var/www/html
-
-```
-
-
-## 🐳  Tambah Dockerfile-manager ( armbian )
-### sudo nano  /home/ubuntu/app-manager/manager/Dockerfile-manager
-masukan di bawah ini
-kalau sudah ketik CTRL + O , ENTER, CTRL + X
-```dockerfile
-# Pakai Bullseye (Debian 11) karena jauh lebih stabil di ARM64/Armbian
+# Pakai Bullseye (Debian 11) agar stabil di ARM64
 FROM php:8.1-apache-bullseye
 
-# Step 1: Update & Install Docker CLI + Dependencies
-RUN apt-get update && apt-get install -y \
-    docker.io \
-    libmariadb-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Step 1: Install Docker CLI
+RUN apt-get update && apt-get install -y docker.io && apt-get clean
 
-# Step 2: Setup User & Extension PHP
+# Step 2: Sinkronisasi GID Docker (Sesuaikan angka 998 dengan hasil cek tadi)
+RUN groupmod -g 998 docker || groupadd -g 998 docker
+
+# Step 3: Setup User & Extension
 RUN usermod -aG docker www-data
 RUN docker-php-ext-install mysqli pdo pdo_mysql && a2enmod rewrite
 
@@ -281,6 +258,15 @@ WORKDIR /var/www/html
 ```
 
 ---
+# Bersihkan cache lama (jika ada error build)
+```bash
+sudo docker builder prune -f
+```
+# Jalankan sistem
+```bash
+sudo docker-compose up -d --build
+```
+
 
 ## 🔐 Izin Docker Socket
 
@@ -326,28 +312,10 @@ docker stats
 ```bash
 docker logs vnet-proxy
 ```
-
 ---
-
-## 🚀 Menjalankan compose ubuntu
-
-```bash
-docker-compose up -d --build
-sudo docker-compose up -d --build
-```
-## 🚀 Menjalankan compose armbian
-
-```bash
-
-sudo docker-compose up -d --build
-```
----
-
 ## © 2026 VNET MEDIA
 
 Managed by Cakro
 
-sudo docker builder prune -f
-sudo docker-compose up -d --build
 
 
