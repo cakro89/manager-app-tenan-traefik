@@ -59,7 +59,34 @@ Pastikan lokasi file di VPS sesuai dengan jalur berikut agar skrip tidak error:
 sudo apt update && sudo apt upgrade -y
 sudo apt install docker.io docker-compose -y
 ```
+CEK DOCKER 
+```bash
+docker --version
+docker-compose --version
+```
+sampai disini docker harusnya jalan Running 
+---
 
+### Tambahan Kalau mau tambah GUI install Portainer Klau Suka CLI skip bagian ini  lanjut 2. Setup Network
+Buat Volume untuk penyimpanan database Portainer
+```bash
+sudo docker volume create portainer_data
+```
+### 2. Jalankan Container Portainer
+> Paste di terminal pkai sudo kalau user 
+
+```bash
+docker run -d -p 8000:8000 -p 9000:9000 -p 9443:9443 \
+  --name portainer \
+  --restart always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  portainer/portainer-ce:latest
+```
+> Port 9000 untuk HTTP (Lokal/Web)
+> Port 9443 untuk HTTPS (Aman)
+>✅ Portainer berhasil diinstal!"
+>🌐 Akses via browser: http://IP-VPS-KAMU:9000 atau https://IP-VPS-KAMU:9443"
 ---
 
 ### 2. Setup Network
