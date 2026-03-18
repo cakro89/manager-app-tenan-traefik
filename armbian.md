@@ -43,6 +43,7 @@ Pastikan lokasi file di VPS sesuai dengan jalur berikut agar skrip tidak error:
 ├── docker-compose.yml       # Konfigurasi orkestrasi kontainer
 ├── Dockerfile-manager       # Docker Image khusus Dashboard (ARM64)
 ├── kontrol/                 # Source code Dashboard VNET
+├── vnet-404/                # Source code EROR 404 DI SEMUA TENAN KOSONG
 ├── user-app/                # Tempat penyimpanan data tiap Tenant
 ├── mikhmon-pppoe/           # Template Master 1 (PPPOE)
 └── mikhmon-modem/           # Template Master 2 (MODEM)
@@ -100,6 +101,7 @@ docker network create vnet-network
 
 sudo mkdir -p /home/ubuntu/app-manager/manager/user-app
 sudo mkdir -p /home/ubuntu/app-manager/manager/kontrol
+sudo mkdir -p /home/ubuntu/app-manager/manager/vnet-404
 sudo mkdir -p /home/ubuntu/app-manager/manager/app1
 sudo mkdir -p /home/ubuntu/app-manager/manager/app2
 sudo mkdir -p /home/ubuntu/app-manager/manager/app3
