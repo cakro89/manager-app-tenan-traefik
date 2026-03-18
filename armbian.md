@@ -292,7 +292,7 @@ sudo docker builder prune -f
 # Jalankan sistem
 ```bash
 # masuk dulu ke dir
-sudo cd /home/ubuntu/app-manager/manager/
+cd /home/ubuntu/app-manager/manager/
 # jalankan compose tungg sampek slesai
 sudo docker-compose up -d --build
 ```
