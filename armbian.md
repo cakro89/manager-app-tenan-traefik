@@ -170,17 +170,19 @@ masukan compose di bawah ini ganti dengan domain sesuiakan
 
 
 ```yaml
-version: '3.8'
+version: '3.3'
 
 services:
+  # --- CLOUDFLARE TUNNEL (Konektor ke internet) ---
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest
     container_name: vnet-tunnel
     restart: always
-    command: tunnel --no-autoupdate run --token GANTI_TOKEN_DISINI
+    command: tunnel --no-autoupdate run --protocol http2 --token GANTI DENGAN TOKEN 
     networks:
       - vnet-network
 
+  # --- TRAEFIK (Reverse Proxy / Auto-subdomain) ---
   traefik:
     image: traefik:v2.10
     container_name: vnet-proxy
@@ -189,18 +191,20 @@ services:
       - "--api.insecure=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=vnet-network"
+      - "--providers.docker.network=vnet-network" # <--- Beri tahu Traefik network defaultnya
       - "--entrypoints.web.address=:80"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - vnet-network
 
+  # --- MANAGER APP (Dashboard Utama) ---
   manager-app:
     build:
       context: .
       dockerfile: Dockerfile-manager
     container_name: vnet-manager
+    user: root
     restart: always
     volumes:
       - ./kontrol:/var/www/html
@@ -210,12 +214,33 @@ services:
       - vnet-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.vnet-manager.rule=Host(`manager.domain.id`)"
+      - "traefik.http.routers.vnet-manager.rule=Host(`manager.domain.id`)"  # <--- GANTI DENGAN DOMAIN MASING MASING) ---
+      - "traefik.http.routers.vnet-manager.entrypoints=web"
       - "traefik.http.services.vnet-manager.loadbalancer.server.port=80"
+
+# --- CUSTOM ERROR PAGE (PAKAI APACHE) ---
+  vnet-error:
+    image: php:8.1-apache-bullseye
+    container_name: vnet-404
+    restart: always
+    volumes:
+      - ./vnet-404:/var/www/html
+    networks:
+      - vnet-network
+    labels:
+      - "traefik.enable=true"
+      # Gunakan nama router vnet-404 secara konsisten
+      - "traefik.http.routers.vnet-404.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.vnet-404.priority=1"
+      - "traefik.http.services.vnet-404.loadbalancer.server.port=80"
+
 
 networks:
   vnet-network:
-    external: true # Menggunakan network yang dibuat manual (rekomendasi)
+    driver: bridge
+
+
+
 ```
 
 janagn lupa masukan token di atas tadi
