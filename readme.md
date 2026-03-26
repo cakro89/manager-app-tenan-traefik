@@ -227,6 +227,81 @@ networks:
     driver: bridge
 ```
 
+
+
+versi irit cpu 
+```yaml
+
+version: '3.8'
+
+services:
+  # --- CLOUDFLARE TUNNEL (Konektor ke internet) ---
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: vnet-tunnel
+    restart: always
+    command: tunnel --no-autoupdate run --protocol http2 --token GANTI TOKEN KAMU
+    networks:
+      - vnet-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'      # Sangat irit CPU
+          memory: 32M       # Tunnel hanya butuh sedikit RAM
+
+  # --- TRAEFIK (Reverse Proxy / Auto-subdomain) ---
+  traefik:
+    image: traefik:v2.10
+    container_name: vnet-proxy
+    restart: always
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=vnet-network"
+      - "--entrypoints.web.address=:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - vnet-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'      # Cukup untuk routing trafik
+          memory: 64M       # Traefik sangat efisien di 64MB
+
+  # --- MANAGER APP (Dashboard Utama - Multi Tenant) ---
+  manager-app:
+    build:
+      context: .
+      dockerfile: Dockerfile-manager
+    container_name: vnet-manager
+    user: root
+    restart: always
+    volumes:
+      - ./kontrol:/var/www/html
+      - /home/ubuntu/app-manager/manager:/manager-root
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - vnet-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vnet-manager.rule=Host(`manager.vnetonline.my.id`)"
+      - "traefik.http.routers.vnet-manager.entrypoints=web"
+      - "traefik.http.services.vnet-manager.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.40'      # Kasih tenaga dikit buat proses API MikroTik
+          memory: 64M       # Limit irit buat 300 user PHP Native
+        reservations:
+          memory: 16M       # Jaminan RAM minimal yang selalu tersedia
+
+networks:
+  vnet-network:
+    name: vnet-network
+    driver: bridge
+```
 janagn lupa masukan token di atas tadi
 ```yaml
  eyJhIjoiYTY2NmM2MmExMTk4OWZmYTU5M2E1MTU4MDljM2YxNzAiLCJ0IjoiNTE0NmJiMmMtNWU1MC00MzViLTk1NmMtMjhkMTAxYWIyNmFjicyI6Ik0yUXpNamc1WTnpWakxUaGpOakV0TWpkaFpEVXpZbUprT0RaaSJ9
