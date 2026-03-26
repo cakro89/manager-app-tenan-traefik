@@ -102,10 +102,11 @@ docker network create vnet-network
 ```bash
 
 sudo mkdir -p /home/ubuntu/app-manager/manager/user-app
+sudo mkdir -p /home/ubuntu/app-manager/manager/user-app-custome
 sudo mkdir -p /home/ubuntu/app-manager/manager/kontrol
-sudo mkdir -p /home/ubuntu/app-manager/manager/app1
-sudo mkdir -p /home/ubuntu/app-manager/manager/app2
-sudo mkdir -p /home/ubuntu/app-manager/manager/app3
+sudo mkdir -p /home/ubuntu/app-manager/manager/mikhmon-pppoe
+sudo mkdir -p /home/ubuntu/app-manager/manager/mikhmon-modem
+
 
 sudo docker network create vnet-network || true
 
@@ -240,7 +241,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: vnet-tunnel
     restart: always
-    command: tunnel --no-autoupdate run --protocol http2 --token GANTI TOKEN KAMU
+    command: tunnel --no-autoupdate run --protocol http2 --token token ente
     networks:
       - vnet-network
     deploy:
@@ -286,7 +287,7 @@ services:
       - vnet-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.vnet-manager.rule=Host(`manager.vnetonline.my.id`)"
+      - "traefik.http.routers.vnet-manager.rule=Host(`okok.settingmitik.my.id`)"
       - "traefik.http.routers.vnet-manager.entrypoints=web"
       - "traefik.http.services.vnet-manager.loadbalancer.server.port=80"
     deploy:
@@ -296,6 +297,31 @@ services:
           memory: 64M       # Limit irit buat 300 user PHP Native
         reservations:
           memory: 16M       # Jaminan RAM minimal yang selalu tersedia
+
+
+# --- CUSTOM ERROR PAGE (PAKAI APACHE) ---
+  vnet-error:
+    image: php:8.1-apache-bullseye
+    container_name: vnet-404
+    restart: always
+    volumes:
+      - ./vnet-404:/var/www/html
+    networks:
+      - vnet-network
+    labels:
+      - "traefik.enable=true"
+      # Gunakan nama router vnet-404 secara konsisten
+      - "traefik.http.routers.vnet-404.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.vnet-404.priority=1"
+      - "traefik.http.services.vnet-404.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'      # Cukup 10% CPU saja karena cuma nampilin halaman statis
+          memory: 32M       # Limit 32MB sudah sangat lega buat Apache satu halaman
+        reservations:
+          memory: 8M        # Jaminan RAM minimal 8MB
+
 
 networks:
   vnet-network:
